@@ -27,6 +27,23 @@ var argscheck = require('cordova/argscheck'),
 
 var timers = {}; // list of timers in use
 
+var positionFromNativeLocation = function(nativeLocation){
+	return new Position(
+		{
+			latitude: nativeLocation.latitude,
+			longitude: nativeLocation.longitude,
+			altitude: nativeLocation.altitude,
+			accuracy: nativeLocation.accuracy,
+			heading: nativeLocation.heading,
+			velocity: nativeLocation.velocity,
+			altitudeAccuracy: nativeLocation.altitudeAccuracy
+		},
+		(nativeLocation.timestamp === undefined ? new Date() : ((nativeLocation.timestamp instanceof Date) ? nativeLocation.timestamp : new Date(nativeLocation.timestamp))),
+		nativeLocation.provider
+	);
+}
+
+
 // Returns default params, overrides if provided with values
 function parseParameters(options) {
 	var opt = {
@@ -90,19 +107,13 @@ var GPSLocation = {
 				// Don't continue with success callback.
 				return;
 			}
-			var pos = new Position({
-				latitude: p.latitude,
-				longitude: p.longitude,
-				altitude: p.altitude,
-				accuracy: p.accuracy,
-				heading: p.heading,
-				velocity: p.velocity,
-				altitudeAccuracy: p.altitudeAccuracy
-			}, (p.timestamp === undefined ? new Date() : ((p.timestamp instanceof Date) ? p.timestamp : new Date(p.timestamp))));
+			var pos = positionFromNativeLocation(p);
 			GPSLocation.lastPosition = pos;
 			successCallback(pos);
 		};
 		var fail = function (e) {
+			// If a fail is received enable network locations again
+			exec(function(status){ console.log(status) }, function(){}, "GPSLocation", "listenToNetworkLocations");
 			clearTimeout(timeoutTimer.timer);
 			timeoutTimer.timer = null;
 			var err = new PositionError(e.code, e.message);
@@ -169,15 +180,7 @@ var GPSLocation = {
 			if (options.timeout !== Infinity) {
 				timers[id].timer = createTimeout(fail, options.timeout);
 			}
-			var pos = new Position({
-				latitude: p.latitude,
-				longitude: p.longitude,
-				altitude: p.altitude,
-				accuracy: p.accuracy,
-				heading: p.heading,
-				velocity: p.velocity,
-				altitudeAccuracy: p.altitudeAccuracy
-			}, (p.timestamp === undefined ? new Date() : ((p.timestamp instanceof Date) ? p.timestamp : new Date(p.timestamp))));
+			var pos = positionFromNativeLocation(p);
 			GPSLocation.lastPosition = pos;
 			successCallback(pos);
 		};

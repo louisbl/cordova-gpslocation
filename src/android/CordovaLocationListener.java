@@ -45,6 +45,7 @@ public class CordovaLocationListener implements LocationListener {
 	private List<CallbackContext> mCallbacks = new ArrayList<CallbackContext>();
 	private Timer mTimer = null;
 	private String TAG;
+	private Boolean ignoringNetworkLocations = false;
 
 	public CordovaLocationListener(CordovaGPSLocation owner, String tag) {
 		mOwner = owner;
@@ -54,13 +55,22 @@ public class CordovaLocationListener implements LocationListener {
 	@Override
 	public void onLocationChanged(Location location) {
 		Log.d(TAG, "The location has been updated!");
-		win(location);
+		if ((location.getProvider().equals(LocationManager.GPS_PROVIDER) ) || !ignoringNetworkLocations) {
+			if (location.getProvider().equals(LocationManager.GPS_PROVIDER)  ) {
+				Log.d(TAG, "Got a GPS location");
+				// Once we got a GPS location we dont care anymore of Network locations
+				ignoringNetworkLocations = true;
+			} else {
+				Log.d(TAG, "Got a NETWORK location");
+			}
+			win(location);
+		}
 	}
 
 	@Override
 	public void onProviderDisabled(String provider) {
-		if (LocationManager.GPS_PROVIDER.equals(provider)) {
-			fail(POSITION_UNAVAILABLE, "GPS provider has been disabled.");
+		if (!mOwner.getLocationManager().isProviderEnabled(LocationManager.GPS_PROVIDER) && !mOwner.getLocationManager().isProviderEnabled(LocationManager.NETWORK_PROVIDER)){
+			fail(POSITION_UNAVAILABLE, "All locations providers are disabled.");
 		}
 	}
 
@@ -89,6 +99,11 @@ public class CordovaLocationListener implements LocationListener {
 		}
 	}
 
+	public void listenToNetworkLocations(CallbackContext callbackContext) {
+		ignoringNetworkLocations = false;
+		callbackContext.success("Listening for network locations until a GPS location is received");
+	}
+
 	public void clearWatch(String timerId) {
 		if (watches.containsKey(timerId)) {
 			watches.remove(timerId);
@@ -104,6 +119,7 @@ public class CordovaLocationListener implements LocationListener {
 
 	protected void fail(int code, String message) {
 		cancelTimer();
+		ignoringNetworkLocations = false;
 
 		for (CallbackContext callbackContext : mCallbacks) {
 			mOwner.fail(code, message, callbackContext, false);
@@ -139,6 +155,7 @@ public class CordovaLocationListener implements LocationListener {
 	}
 
 	private void start() {
+		mOwner.getLocationManager().requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 1000, 0, this);
 		mOwner.getLocationManager().requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
 	}
 

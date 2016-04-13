@@ -30,6 +30,8 @@ xmlns:android="http://schemas.android.com/apk/res/android"
     <repo>https://github.com/louisbl/cordova-gpslocation</repo>
     <issue>https://github.com/louisbl/cordova-gpslocation/issues</issue>
 
+    <dependency id="cordova-plugin-compat" version="^1.0.0" />
+
     <!-- android -->
     <platform name="android">
 
